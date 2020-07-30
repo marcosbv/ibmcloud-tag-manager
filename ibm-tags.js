@@ -6,14 +6,18 @@
  * 
  */
 
- // LCHpIuUjTxl6BrjjITKZtOFm4ODdU9492ma2dB2erann
-
+ /**
+  * Required libraries
+  */
 const GlobalTaggingV1 = require('ibm-platform-services/global-tagging/v1')
 const GlobalSearchV2 = require('ibm-platform-services/global-search/v2')
 const winston = require('./winston')
 
 const { IamAuthenticator } = require('ibm-platform-services/auth')
 
+/**
+ * Command-line Parameters 
+ */
 const groups = process.argv.splice(2).join(' ').split('--')
 
 const resourcesToLookFor = groups[1].trim().split(' ')
@@ -21,10 +25,28 @@ const tagsToManage = groups[0].trim().split(' ').splice(1)
 const operation = groups[0].trim().split(' ')[0]
 const token = groups[2].trim()
 
+/**
+ * Service instances
+ */
 const authenticator = new IamAuthenticator({apikey: token})
 const tagService = new GlobalTaggingV1({authenticator})
 const searchService = new GlobalSearchV2({authenticator})
 
+/**
+ * Observe if a resource should be included in the selection list.
+ * This observe a set of strings as resource selectors to return to the caller a boolean indicating the resource should be selected.
+ * Three basic selectors are available:
+ * 
+ * 'all' word       -> in this case, the resource must be selected
+ * exact name match -> in this case, the resource must be selected
+ * substring pattern-> in this case, the resource must be selected.
+ * Otherwise, the resource must not be selected.
+ * 
+ * @param {*} resource             Resource Object
+ * @param {*} resourcesToLookFor   Array of strings with resource selectors. Each selector will be checked.
+ * 
+ * @returns   a boolean with true if resource is selected; false otherwise
+ */
 function shouldIncludeResource(resource, resourcesToLookFor) {
     // all string?
     if(resourcesToLookFor.length > 0 && resourcesToLookFor[0] == "all") {
@@ -49,6 +71,13 @@ function shouldIncludeResource(resource, resourcesToLookFor) {
     return false;
 }
 
+/**
+ * Attach a set of tags to a set of resources, using the IBM Cloud Global Tagging API.
+ * 
+ * @param {*} tags        an array of tags
+ * @param {*} resources   an array of resource objects. This object must have only an attribute named 'resource_id'.
+ * 
+ */
 async function addTagsToResources(tags, resources) {
     winston.debug(`Calling addTagValuesToResources with parameters: 
     TAGS: ${tags}
@@ -62,6 +91,13 @@ async function addTagsToResources(tags, resources) {
     winston.info('Successfully added tags to resources.')
 }
 
+/**
+ * Detach a set of tags from a set of resources, using the IBM Cloud Global Tagging API.
+ * 
+ * @param {*} tags        an array of tags
+ * @param {*} resources   an array of resource objects. This object must have only an attribute named 'resource_id'.
+ * 
+ */
 async function removeTagsFromResources(tags, resources) {
     await tagService.detachTag({
         tagNames: tags,
@@ -70,6 +106,13 @@ async function removeTagsFromResources(tags, resources) {
     winston.info('Successfully removed tags from resources.')
 }
 
+/**
+ * Load selected resource instances using IBM Cloud Global Search API.
+ * This method will check if a resource should be selected thru shouldIncludeResource() function.
+ * In addition, a list of selected resource groups are fetched and their resource instances are added into the resulting array.
+ * 
+ * @returns a Promise with an array of objects containing selected resource CRNs.
+ */
 async function loadResources() {
 
     return new Promise(async (resolve) => {
@@ -89,7 +132,7 @@ async function loadResources() {
 
        let numberOfResourceGroups = 0
        const resourceGroupsToConsider = resources.result.items.filter(resource => {
-           if(resource.type == "resource-group") {
+           if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
               numberOfResourceGroups++;
               if(shouldIncludeResource(resource, resourcesToLookFor)) {
                   resource.id = resource.crn.split(':')[9]
@@ -104,7 +147,7 @@ async function loadResources() {
 
         winston.info(`[loadResources] Resources returned: ${resources.result.items.length}`)
         const resourcesToManage = resources.result.items.filter(resource => {
-            
+                    
             // do not consider account structural resources
             if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
                 return false;
@@ -134,11 +177,22 @@ async function loadResources() {
     })
 }
 
+/**
+ * Clean tags that are not attached to any resource, thru deleteTagAll API call.
+ * This method does not receive any parameter and does not produce any return.
+ */
 async function cleanUnusedTags() {
     const response = await tagService.deleteTagAll()
     winston.info(`[cleanUnusedTags] Removed ${response.result.total_count} unused tag(s).`)
 }
 
+/**
+ * Replace a complete tag (label only or name:value pair) by a different one.
+ * It accomplishes this by detaching the old tag and attaching the new one.
+ * 
+ * @param {*} tags        an array containing the old tag and new tag 
+ * @param {*} resources   an array of resource objects containing an attribute named resource_id
+ */
 async function replaceTag(tags, resources) {
     const tag1 = tags[0]
     const tag2 = tags[1]
@@ -156,6 +210,13 @@ async function replaceTag(tags, resources) {
      winston.info('[replaceTag] Tag successfully replaced.')
 }
 
+/**
+ * Detach tags from resources that match the tag name.
+ * This method will ignore the value part of a name:value pair while evaluating the resource tags.
+ * 
+ * @param {*} prefixes            an array of tag names
+ * @param {*} resourcesToManage   an array of resource objects containing an attribute named resource_id
+ */
 async function removeTagsFilteringByName(prefixes, resourcesToManage) {
     for(const resource of resourcesToManage) {
         winston.debug(`[removeTagsFilteringByName] Recovering tags for resource ${resource.resource_id}`)
@@ -181,6 +242,57 @@ async function removeTagsFilteringByName(prefixes, resourcesToManage) {
     
 }
 
+/**
+ * Replace a tag name by a new one.
+ * This method will ignore the value part of a name:value pair while evaluating the resource tags.
+ * 
+ * @param {*} prefixes            an array containing the old name and the new name
+ * @param {*} resourcesToManage   an array of resource objects containing an attribute named resource_id
+ */
+async function replaceTagName(prefixes, resourcesToManage) {
+    const tagName1 = prefixes[0]
+    const tagName2 = prefixes[1]
+
+    for(const resource of resourcesToManage) {
+        winston.debug(`[removeTagsFilteringByName] Recovering tags for resource ${resource.resource_id}`)
+        
+        const tags = await tagService.listTags(
+            {attachedTo: resource.resource_id }
+        )
+
+        winston.debug(`[removeTagsFilteringByName] Tags returned for resource ${resource.resource_id} : ${tags.result.items.length}`)
+        for(const tag of tags.result.items) {
+            const nameValuePair = tag.name.split(':')
+            const name = nameValuePair[0]
+            const value = nameValuePair.length >= 1 ? `:${nameValuePair[1]}` : '' 
+           
+            if(tagName1 == name) {
+                winston.info(`[removeTagsFilteringByName] Replacing tag name ${name} in resource ${resource.resource_id} with ${tagName2}`)
+                await tagService.detachTag({
+                    tagName: tag.name,
+                    resources: [resource]
+                })
+
+                await tagService.attachTag({
+                    tagName: `${tagName2}${value}`,
+                    resources: [resource]
+                })
+            }
+        }
+    }
+
+    
+}
+
+/**
+ * Main program logic.
+ * 
+ * It will:
+ * 
+ * -> load resources according to resource selectors declared in the command line
+ * -> perform one of the available operations
+ * -> gracefully finish
+ */
 async function main() {
     winston.debug('STARTING!');
  
@@ -206,7 +318,7 @@ async function main() {
     }
 
     if(operation == "replace-tag-name") {
-        // await replaceTagValue(tags, resourcesToManage)
+        await replaceTagName(tagsToManage, resourcesToManage)
     }
 
     if(operation == "clean-unused-tags") {

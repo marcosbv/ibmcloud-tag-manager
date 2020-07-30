@@ -12,6 +12,7 @@
         - [replace-tag](#replace-tag)
         - [detach-tag-by-name](#detach-tag-by-name)
         - [clean-unused-tags](#clean-unused-tags)
+        - [replace-tag-name](#replace-tag-name)
 
 <!-- /TOC -->
 
@@ -62,7 +63,7 @@ node ibm-tags.js <Operation> <Tag1> <Tag2>...<TagN> -- <ResourceSelector1> <Reso
 * [detach-tag](#detach-tag)
 * [detach-tag-by-name](#detach-tag-by-name)
 * [replace-tag](#replace-tag)
-* replace-tag-name (not implemented yet)
+* [replace-tag-name](#replace-tag-name)
 
 Consider the documentation of each sub-command for details.
 
@@ -181,4 +182,16 @@ Use Case: cleanup of unused tags.
 Example:
 ```bash
 node ibm-tags.js clean-unused-tags -- -- My_API_KEY
+```
+
+### replace-tag-name
+
+Replace a tag name by another, keeping the original value for name:value tags. The list of tags must have two values: the old tag name and the new desired name. Unexpected behavior will occur if only one tag is passed. Additional tags in the list will be ignored.
+
+Use case: your tag management team decided to change a tag name for a shorter format, for instance.
+
+Example:
+```bash
+# it will replace all tags with name department by tag name depto for all account resources
+node ibm-tags.js replace-tag-name department depto -- all -- My_API_KEY
 ```
