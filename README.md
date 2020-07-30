@@ -27,11 +27,8 @@ This Node.js application allows users to attach, detach and manage tags at scale
 
 This application uses the following IBM Cloud Platform APIs:
 
-Resource Manager, to retrieve Resource Group information:
-https://cloud.ibm.com/apidocs/resource-controller/resource-manager
-
-Resource Controller, to retrieve Resource Instance information:
-https://cloud.ibm.com/apidocs/resource-controller/resource-controller
+Global Search, to retrieve information about resource groups and resource instances:
+https://cloud.ibm.com/apidocs/search
 
 Global Tagging, to manipulate tags:
 https://cloud.ibm.com/apidocs/tagging
