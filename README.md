@@ -67,8 +67,8 @@ node ibm-tags.js <Operation> <Tag1> <Tag2>...<TagN> -- <ResourceSelector1> <Reso
 * [detach-tag-by-name](#detach-tag-by-name)
 * [replace-tag](#replace-tag)
 * [replace-tag-name](#replace-tag-name)
-* report-present-tags
-* report-absent-tags
+* [report-present-tags](#report-present-tags)
+* [report-absent-tags](#report-absent-tags)
 
 Consider the documentation of each sub-command for details.
 
