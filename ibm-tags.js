@@ -127,14 +127,16 @@ async function loadResources() {
        const resources = await searchService.search({
            limit: 1000,
            query: '*',
-           fields: ["name","tags","service_name","type","doc.resource_group_id", "region"]
+           fields: ["name","tags","service_name","type","doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
        })
+
 
        let numberOfResourceGroups = 0
        const resourceGroupsToConsider = resources.result.items.filter(resource => {
            if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
               numberOfResourceGroups++;
               if(shouldIncludeResource(resource, resourcesToLookFor)) {
+                  winston.debug(`[loadResources] Adding ${resource.type} ${resource.name} to the list of groups to consider.`)
                   resource.id = resource.crn.split(':')[9]
                   return true;
               }
@@ -142,33 +144,57 @@ async function loadResources() {
 
            return false;
        })
-        winston.info(`[loadResources] Resource Groups returned: ${numberOfResourceGroups}`)
-        winston.info(`[loadResources] Resource Groups after filter: ${resourceGroupsToConsider.length}`)        
+        winston.info(`[loadResources] Groups returned: ${numberOfResourceGroups}`)
+        winston.info(`[loadResources] Groups after filter: ${resourceGroupsToConsider.length}`)        
 
         winston.info(`[loadResources] Resources returned: ${resources.result.items.length}`)
         const resourcesToManage = resources.result.items.filter(resource => {
-                    
+             
+            //console.log(resource)
             // do not consider account structural resources
             if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
                 return false;
             }
 
             if(shouldIncludeResource(resource, resourcesToLookFor)) {
+                winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=NameMatch`)
                 return true;
             }
-    
-            if(!resource.doc) {
-                return false
-            }
 
-            if(resource.doc.resource_group_id) {
-                const rgid = resource.doc.resource_group_id
+            // organization guid
+            if(resource.organization_guid) {
+                const rgid = resource.organization_guid
                 for(const rg of resourceGroupsToConsider) {
                     if(rg.id == rgid) {
+                        winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=OrganizationMatch`)
                         return true;
                     }
                 }
             }
+            if(resource.doc) {
+                // resource group
+                if(resource.doc.resource_group_id) {
+                    const rgid = resource.doc.resource_group_id
+                    for(const rg of resourceGroupsToConsider) {
+                        if(rg.id == rgid) {
+                            winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=ResourceGroupMatch`)
+                            return true;
+                        }
+                    }
+                }
+
+                // space guid
+                if(resource.doc.space_guid) {
+                    const rgid = resource.doc.space_guid
+                    for(const rg of resourceGroupsToConsider) {
+                        if(rg.id == rgid) {
+                            winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=SpaceMatch`)
+                            return true;
+                        }
+                    }
+                }
+            }
+            
     
              return false;
         })
