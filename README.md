@@ -13,6 +13,8 @@
         - [detach-tag-by-name](#detach-tag-by-name)
         - [clean-unused-tags](#clean-unused-tags)
         - [replace-tag-name](#replace-tag-name)
+        - [report-present-tags](#report-present-tags)
+        - [report-absent-tags](#report-absent-tags)
 
 <!-- /TOC -->
 
@@ -24,7 +26,8 @@ This Node.js application allows users to attach, detach and manage tags at scale
 * exclusion of unused tags - tags not attached to any resource;
 * replace of tags in a set of resources and resource groups - i.e a replace of a tag from abc:1 to abc:4 means to detach the tag abc:1 and attach a tag with value abc:4;
 * detaching of a tag by name in a set of resources and resource groups - i.e, deprecation of a tag named abc, no matter its value.
-* replace of a tag name - not fully implemented yet.
+* replace of a tag name.
+* useful reports for tag management.
 
 This application uses the following IBM Cloud Platform APIs:
 
@@ -64,6 +67,8 @@ node ibm-tags.js <Operation> <Tag1> <Tag2>...<TagN> -- <ResourceSelector1> <Reso
 * [detach-tag-by-name](#detach-tag-by-name)
 * [replace-tag](#replace-tag)
 * [replace-tag-name](#replace-tag-name)
+* report-present-tags
+* report-absent-tags
 
 Consider the documentation of each sub-command for details.
 
@@ -157,7 +162,7 @@ Example:
 
 replace tag name depto and value dcd with tag name depto and value cdec for resource group Default.
 ```
-node index.js replace-tag depto:dcd depto:cdec -- Default -- My_API_KEY
+node ibm-tags.js replace-tag depto:dcd depto:cdec -- Default -- My_API_KEY
 ```
 
 ### detach-tag-by-name
@@ -194,4 +199,30 @@ Example:
 ```bash
 # it will replace all tags with name department by tag name depto for all account resources
 node ibm-tags.js replace-tag-name department depto -- all -- My_API_KEY
+```
+
+### report-present-tags
+
+This command sends to standard output all resources that has the set of tag names. This command ignores the value portion of tag. If one of passed tags are found, the resource is printed together with the first tag found.
+
+Use case: ensure some tag was correctly applied to a set of resources, no matter its value portion.
+
+Example: 
+
+```bash
+# It will print all resources that has this tag attached to.
+node ibm-tags.js report-present-tags depto -- all -- My_API_KEY
+```
+
+### report-absent-tags
+
+This command send to standard output all resources that don't have a specific tag name attached to them. 
+
+Use case: determine what resources are missing some required tag.
+
+Example: 
+
+```bash
+# It will print all resources that don't have depto tag set.
+node ibm-tags.js report-absent-tags depto -- all -- My_API_KEY
 ```

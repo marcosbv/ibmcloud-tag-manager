@@ -6,9 +6,9 @@
  * 
  */
 
- /**
-  * Required libraries
-  */
+/**
+ * Required libraries
+ */
 const GlobalTaggingV1 = require('ibm-platform-services/global-tagging/v1')
 const GlobalSearchV2 = require('ibm-platform-services/global-search/v2')
 const winston = require('./winston')
@@ -28,9 +28,9 @@ const token = groups[2].trim()
 /**
  * Service instances
  */
-const authenticator = new IamAuthenticator({apikey: token})
-const tagService = new GlobalTaggingV1({authenticator})
-const searchService = new GlobalSearchV2({authenticator})
+const authenticator = new IamAuthenticator({ apikey: token })
+const tagService = new GlobalTaggingV1({ authenticator })
+const searchService = new GlobalSearchV2({ authenticator })
 
 /**
  * Observe if a resource should be included in the selection list.
@@ -49,20 +49,20 @@ const searchService = new GlobalSearchV2({authenticator})
  */
 function shouldIncludeResource(resource, resourcesToLookFor) {
     // all string?
-    if(resourcesToLookFor.length > 0 && resourcesToLookFor[0] == "all") {
+    if (resourcesToLookFor.length > 0 && resourcesToLookFor[0] == "all") {
         return true;
     }
 
     // exact resource name?
-    if(resourcesToLookFor.indexOf(resource.name)!=-1) {
+    if (resourcesToLookFor.indexOf(resource.name) != -1) {
         return true;
     }
 
     // substring pattern?
-    for(const r of resourcesToLookFor) {
-        if(r.substring(0, 7) == "substr:") {
+    for (const r of resourcesToLookFor) {
+        if (r.substring(0, 7) == "substr:") {
             const pattern = r.substring(7)
-            if(resource.name.indexOf(pattern)>=0) {
+            if (resource.name.indexOf(pattern) >= 0) {
                 return true;
             }
         }
@@ -82,10 +82,10 @@ async function addTagsToResources(tags, resources) {
     winston.debug(`Calling addTagValuesToResources with parameters: 
     TAGS: ${tags}
     RESOURCES: ${JSON.stringify(resources)}`)
-    
-   await tagService.attachTag({
-       tagNames: tags,
-       resources: resources
+
+    await tagService.attachTag({
+        tagNames: tags,
+        resources: resources
     })
 
     winston.info('Successfully added tags to resources.')
@@ -106,10 +106,11 @@ async function removeTagsFromResources(tags, resources) {
     winston.info('Successfully removed tags from resources.')
 }
 
+
 /**
  * Load selected resource instances using IBM Cloud Global Search API.
  * This method will check if a resource should be selected thru shouldIncludeResource() function.
- * In addition, a list of selected resource groups are fetched and their resource instances are added into the resulting array.
+ * In addition, a list of selected resource groups, CF organizations and spaces are fetched and their resource instances are added into the resulting array.
  * 
  * @returns a Promise with an array of objects containing selected resource CRNs.
  */
@@ -117,66 +118,68 @@ async function loadResources() {
 
     return new Promise(async (resolve) => {
 
-        if(resourcesToLookFor.length == 0 || resourcesToLookFor[0] == '') {
+        if (resourcesToLookFor.length == 0 || resourcesToLookFor[0] == '') {
             resolve([])
             return
         }
 
         winston.info('[loadResources] Capturing resource groups and resource instances');
-       // const resources = await resourceService.listResourceInstances({limit: 500})
-       const resources = await searchService.search({
-           limit: 1000,
-           query: '*',
-           fields: ["name","tags","service_name","type","doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
-       })
+        // const resources = await resourceService.listResourceInstances({limit: 500})
+        const resources = await searchService.search({
+            limit: 1000,
+            query: '*',
+            fields: ["name", "tags", "service_name", "type", "doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
+        })
 
 
-       let numberOfResourceGroups = 0
-       const resourceGroupsToConsider = resources.result.items.filter(resource => {
-           if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
-              numberOfResourceGroups++;
-              if(shouldIncludeResource(resource, resourcesToLookFor)) {
-                  winston.debug(`[loadResources] Adding ${resource.type} ${resource.name} to the list of groups to consider.`)
-                  resource.id = resource.crn.split(':')[9]
-                  return true;
-              }
-           }
+        let numberOfResourceGroups = 0
+        const resourceGroupsToConsider = resources.result.items.filter(resource => {
+            if (resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
+                numberOfResourceGroups++;
+                if (shouldIncludeResource(resource, resourcesToLookFor)) {
+                    winston.debug(`[loadResources] Adding ${resource.type} ${resource.name} to the list of groups to consider.`)
+                    resource.id = resource.crn.split(':')[9]
+                    return true;
+                }
+            }
 
-           return false;
-       })
+            return false;
+        })
         winston.info(`[loadResources] Groups returned: ${numberOfResourceGroups}`)
-        winston.info(`[loadResources] Groups after filter: ${resourceGroupsToConsider.length}`)        
+        winston.info(`[loadResources] Groups after filter: ${resourceGroupsToConsider.length}`)
 
         winston.info(`[loadResources] Resources returned: ${resources.result.items.length}`)
         const resourcesToManage = resources.result.items.filter(resource => {
-             
+
             //console.log(resource)
             // do not consider account structural resources
-            if(resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
+            if (resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
                 return false;
             }
 
-            if(shouldIncludeResource(resource, resourcesToLookFor)) {
+            if (shouldIncludeResource(resource, resourcesToLookFor)) {
                 winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=NameMatch`)
                 return true;
             }
 
             // organization guid
-            if(resource.organization_guid) {
+            if (resource.organization_guid) {
                 const rgid = resource.organization_guid
-                for(const rg of resourceGroupsToConsider) {
-                    if(rg.id == rgid) {
+                for (const rg of resourceGroupsToConsider) {
+                    if (rg.id == rgid) {
+                        
                         winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=OrganizationMatch`)
                         return true;
                     }
                 }
             }
-            if(resource.doc) {
+            if (resource.doc) {
                 // resource group
-                if(resource.doc.resource_group_id) {
+                if (resource.doc.resource_group_id) {
                     const rgid = resource.doc.resource_group_id
-                    for(const rg of resourceGroupsToConsider) {
-                        if(rg.id == rgid) {
+                    for (const rg of resourceGroupsToConsider) {
+                        if (rg.id == rgid) {
+                           
                             winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=ResourceGroupMatch`)
                             return true;
                         }
@@ -184,22 +187,23 @@ async function loadResources() {
                 }
 
                 // space guid
-                if(resource.doc.space_guid) {
+                if (resource.doc.space_guid) {
                     const rgid = resource.doc.space_guid
-                    for(const rg of resourceGroupsToConsider) {
-                        if(rg.id == rgid) {
+                    for (const rg of resourceGroupsToConsider) {
+                        if (rg.id == rgid) {
+                           
                             winston.debug(`[loadResources] Adding resource ${resource.name} to the list. Reason=SpaceMatch`)
                             return true;
                         }
                     }
                 }
             }
-            
-    
-             return false;
+
+
+            return false;
         })
         winston.info(`[loadResources] Resources after filter: ${resourcesToManage.length}`)
-        resolve(resourcesToManage.map(r => { return {resource_id : r.crn} }))
+        resolve(resourcesToManage.map(r => { return { resource_id: r.crn, tags: r.tags, name: r.name, resource_type: r.type } }))
     })
 }
 
@@ -231,9 +235,9 @@ async function replaceTag(tags, resources) {
     await tagService.attachTag({
         tagNames: [tag2],
         resources: resources
-     })
+    })
 
-     winston.info('[replaceTag] Tag successfully replaced.')
+    winston.info('[replaceTag] Tag successfully replaced.')
 }
 
 /**
@@ -244,18 +248,18 @@ async function replaceTag(tags, resources) {
  * @param {*} resourcesToManage   an array of resource objects containing an attribute named resource_id
  */
 async function removeTagsFilteringByName(prefixes, resourcesToManage) {
-    for(const resource of resourcesToManage) {
+    for (const resource of resourcesToManage) {
         winston.debug(`[removeTagsFilteringByName] Recovering tags for resource ${resource.resource_id}`)
-        
+
         const tags = await tagService.listTags(
-            {attachedTo: resource.resource_id }
+            { attachedTo: resource.resource_id }
         )
 
         winston.debug(`[removeTagsFilteringByName] Tags returned for resource ${resource.resource_id} : ${tags.result.items.length}`)
-        for(const tag of tags.result.items) {
+        for (const tag of tags.result.items) {
             const name = tag.name.split(':')[0]
-           
-            if(prefixes.indexOf(name) !=-1) {
+
+            if (prefixes.indexOf(name) != -1) {
                 winston.info(`[removeTagsFilteringByName] Removing tag ${tag.name} from resource ${resource.resource_id}`)
                 await tagService.detachTag({
                     tagName: tag.name,
@@ -265,7 +269,7 @@ async function removeTagsFilteringByName(prefixes, resourcesToManage) {
         }
     }
 
-    
+
 }
 
 /**
@@ -279,20 +283,20 @@ async function replaceTagName(prefixes, resourcesToManage) {
     const tagName1 = prefixes[0]
     const tagName2 = prefixes[1]
 
-    for(const resource of resourcesToManage) {
+    for (const resource of resourcesToManage) {
         winston.debug(`[removeTagsFilteringByName] Recovering tags for resource ${resource.resource_id}`)
-        
+
         const tags = await tagService.listTags(
-            {attachedTo: resource.resource_id }
+            { attachedTo: resource.resource_id }
         )
 
         winston.debug(`[removeTagsFilteringByName] Tags returned for resource ${resource.resource_id} : ${tags.result.items.length}`)
-        for(const tag of tags.result.items) {
+        for (const tag of tags.result.items) {
             const nameValuePair = tag.name.split(':')
             const name = nameValuePair[0]
-            const value = nameValuePair.length >= 1 ? `:${nameValuePair[1]}` : '' 
-           
-            if(tagName1 == name) {
+            const value = nameValuePair.length >= 1 ? `:${nameValuePair[1]}` : ''
+
+            if (tagName1 == name) {
                 winston.info(`[removeTagsFilteringByName] Replacing tag name ${name} in resource ${resource.resource_id} with ${tagName2}`)
                 await tagService.detachTag({
                     tagName: tag.name,
@@ -307,7 +311,40 @@ async function replaceTagName(prefixes, resourcesToManage) {
         }
     }
 
-    
+
+}
+
+async function reportTags(tags, resources, type) {
+
+    let counter = 0
+    console.log(`
+ResourceName, Tag Value
+=======================================`)
+    for (const resource of resources) {
+        let found = false
+        for (const tag of resource.tags) {
+            const pair = tag.split(':')
+            const tagName = pair[0]
+
+            if (tags.indexOf(tagName) >= 0) {
+                found = true
+                if (type == 'present') {
+                    counter++
+                    console.log(`${resource.name}, ${tag}`)
+                    break;
+                }
+            }
+        }
+
+        if (!found && type == 'absent') {
+            counter++
+            console.log(`${resource.name}, ${tags}`)
+        }
+    }
+
+    console.log(
+`=======================================
+ TOTAL  : ${counter}`)
 }
 
 /**
@@ -321,34 +358,43 @@ async function replaceTagName(prefixes, resourcesToManage) {
  */
 async function main() {
     winston.debug('STARTING!');
- 
-    const [resourcesToManage] = await Promise.all([
+
+    const [resources] = await Promise.all([
         loadResources(),
     ])
 
-    if(operation == "attach-tag") {
-       await addTagsToResources(tagsToManage, resourcesToManage)
+    const resourcesToManage = resources.map(r => { return { resource_id: r.resource_id } })
+
+    if (operation == "attach-tag") {
+        await addTagsToResources(tagsToManage, resourcesToManage)
     }
 
-    if(operation == "detach-tag") {
-       await removeTagsFromResources(tagsToManage, resourcesToManage)
+    if (operation == "detach-tag") {
+        await removeTagsFromResources(tagsToManage, resourcesToManage)
     }
 
-   
-    if(operation == "detach-tag-by-name") {
+    if (operation == "detach-tag-by-name") {
         await removeTagsFilteringByName(tagsToManage, resourcesToManage)
     }
 
-    if(operation == "replace-tag") {
+    if (operation == "replace-tag") {
         await replaceTag(tagsToManage, resourcesToManage)
     }
 
-    if(operation == "replace-tag-name") {
+    if (operation == "replace-tag-name") {
         await replaceTagName(tagsToManage, resourcesToManage)
     }
 
-    if(operation == "clean-unused-tags") {
+    if (operation == "clean-unused-tags") {
         await cleanUnusedTags()
+    }
+
+    if (operation == "report-absent-tags") {
+        await reportTags(tagsToManage, resources, 'absent')
+    }
+
+    if (operation == "report-present-tags") {
+        await reportTags(tagsToManage, resources, 'present')
     }
 
     winston.info('FINISHED!')
