@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "ibm-platform-services": "^0.10.0",
+    "@ibm-cloud/platform-services": "^0.22.3",
     "winston": "^3.3.3"
   }
 }

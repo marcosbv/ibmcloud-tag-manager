@@ -9,11 +9,11 @@
 /**
  * Required libraries
  */
-const GlobalTaggingV1 = require('ibm-platform-services/global-tagging/v1')
-const GlobalSearchV2 = require('ibm-platform-services/global-search/v2')
+const GlobalTaggingV1 = require('@ibm-cloud/platform-services/global-tagging/v1')
+const GlobalSearchV2 = require('@ibm-cloud/platform-services/global-search/v2')
 const winston = require('./winston')
 
-const { IamAuthenticator } = require('ibm-platform-services/auth')
+const { IamAuthenticator } = require('@ibm-cloud/platform-services/auth')
 
 /**
  * Command-line Parameters 
