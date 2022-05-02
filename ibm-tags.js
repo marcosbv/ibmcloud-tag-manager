@@ -363,11 +363,11 @@ async function duplicateTag(tags, resources) {
         for(const tag of tags.result.items) {
             const keyPair = tag.name.split(":")
             if(keyPair[0] == tagToDuplicate) {
+                tagFound=true
                 if(keyPair.length > 1) {
                     if(keyPair[1] != tagValue) {
                         winston.info(`[duplicateTag] We found a different previous value for tag ${keyPair[0]} for resource ${resource.resource_id}. We are going to replace it.`)
                         await replaceTag([`${tag.name}`, `${keyPair[0]}:${tagValue}`], [resource])
-                        tagFound=true
                         break
                     }
                 }
