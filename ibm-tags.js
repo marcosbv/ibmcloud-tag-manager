@@ -134,7 +134,7 @@ async function loadResources() {
         let hasNextPage = true
 
         let params = {
-            limit: 100,
+            limit: 1000,
             query: '*',
             fields: ["name", "tags", "service_name", "type", "doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
         }
