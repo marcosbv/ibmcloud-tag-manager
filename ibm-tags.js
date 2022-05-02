@@ -23,7 +23,7 @@ const groups = process.argv.splice(2).join(' ').split('--')
 const resourcesToLookFor = groups[1].trim().split(' ')
 const tagsToManage = groups[0].trim().split(' ').splice(1)
 const operation = groups[0].trim().split(' ')[0]
-const token = groups[2].trim()
+const token = process.env.IBMCLOUD_API_KEY || groups[2].trim()
 
 /**
  * Service instances
@@ -314,6 +314,61 @@ async function replaceTagName(prefixes, resourcesToManage) {
 
 }
 
+async function duplicateTag(tags, resources) {
+    const tagToQuery = tags[0]
+    const tagToDuplicate = tags[1]
+    
+
+    for(const resource of resources) {
+        const tags = await tagService.listTags(
+            { attachedTo: resource.resource_id }
+        )
+        let tagValue = null
+        // look for original tag
+        for(const tag of tags.result.items) {
+            const keyPair = tag.name.split(":")
+            if(keyPair[0] == tagToQuery) {
+                tagValue = keyPair.length > 1 ? keyPair[1] : ""
+                break
+            }
+        }
+
+        // not found original one? go to the next result
+        if(tagValue==null) {
+            winston.info(`[duplicateTag] Original tag not found for resource ${resource.resource_id}. Duplication will be ignored.`)
+            continue;
+        }
+
+        let tagFound=false
+        // look for new tag, if existent, then replace it.
+        for(const tag of tags.result.items) {
+            const keyPair = tag.name.split(":")
+            if(keyPair[0] == tagToDuplicate) {
+                if(keyPair.length > 1) {
+                    if(keyPair[1] != tagValue) {
+                        winston.info(`[duplicateTag] We found a different previous value for tag ${keyPair[0]} for resource ${resource.resource_id}. We are going to replace it.`)
+                        await replaceTag([`${tag.name}`, `${keyPair[0]}:${tagValue}`], [resource])
+                        tagFound=true
+                        break
+                    }
+                }
+               
+            }
+        }
+
+
+        if(!tagFound) {
+            winston.info(`[duplicateTag] Adding a new tag ${tagToDuplicate} to resource ${resource.resource_id} with value ${tagValue}`)
+            await tagService.attachTag({
+                tagName: `${tagToDuplicate}:${tagValue}`,
+                resources: [resource]
+            })
+        }
+        
+
+    }
+}
+
 async function reportTags(tags, resources, type) {
 
     let counter = 0
@@ -395,6 +450,10 @@ async function main() {
 
     if (operation == "report-present-tags") {
         await reportTags(tagsToManage, resources, 'present')
+    }
+
+    if(operation == "duplicate-tag") {
+        await duplicateTag(tagsToManage, resourcesToManage)
     }
 
     winston.info('FINISHED!')
