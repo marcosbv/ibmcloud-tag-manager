@@ -125,13 +125,32 @@ async function loadResources() {
 
         winston.info('[loadResources] Capturing resource groups and resource instances');
         // const resources = await resourceService.listResourceInstances({limit: 500})
-        const resources = await searchService.search({
-            limit: 1000,
+        let resources = {
+            result:{
+                items:[]
+            }
+        }
+    
+        let hasNextPage = true
+
+        let params = {
+            limit: 100,
             query: '*',
             fields: ["name", "tags", "service_name", "type", "doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
-        })
+        }
+        while(hasNextPage) {
+            const resourcesInThisPage = await searchService.search(params)
 
+            resources.result.items = resources.result.items.concat(resourcesInThisPage.result.items)
 
+            if(resourcesInThisPage.result.search_cursor) {
+                params = {
+                    searchCursor : resourcesInThisPage.result.search_cursor,
+                }
+            } else {
+                hasNextPage = false
+            }
+        }
         let numberOfResourceGroups = 0
         const resourceGroupsToConsider = resources.result.items.filter(resource => {
             if (resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
