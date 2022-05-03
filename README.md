@@ -13,6 +13,7 @@
         - [detach-tag-by-name](#detach-tag-by-name)
         - [clean-unused-tags](#clean-unused-tags)
         - [replace-tag-name](#replace-tag-name)
+        - [duplicate-tag](#duplicate-tag)
         - [report-present-tags](#report-present-tags)
         - [report-absent-tags](#report-absent-tags)
 
@@ -121,6 +122,8 @@ If you use as a resource selector:
 
 https://cloud.ibm.com/docs/account?topic=account-userapikey#create_user_key
 
+_Note: you can use the environment variable IBMCLOUD\_API\_KEY and omit this value in the command line._
+
 ## Sub-commands reference
 
 ### attach-tag
@@ -199,6 +202,18 @@ Example:
 ```bash
 # it will replace all tags with name department by tag name depto for all account resources
 node ibm-tags.js replace-tag-name department depto -- all -- My_API_KEY
+```
+
+### duplicate-tag
+
+Creates a new tag with a different name using the value of the old variable. If the new tag exists in the resource, it is synched up with the value of the old variable.
+
+Use case: a company reorganization takes places and they decide to change a tag naming convention without detaching the old tag from resources (for example, they are still used by billing reports). 
+
+Example:
+```bash
+# it will create a new tag named depto in all resources that have a tag named department. The value of department is carried out to depto as well.
+node ibm-tags.js duplicate-tag department depto -- all -- My_API_KEY
 ```
 
 ### report-present-tags
