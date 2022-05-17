@@ -339,51 +339,57 @@ async function duplicateTag(tags, resources) {
     
 
     for(const resource of resources) {
-        const tags = await tagService.listTags(
-            { attachedTo: resource.resource_id }
-        )
-        let tagValue = null
-        // look for original tag
-        for(const tag of tags.result.items) {
-            const keyPair = tag.name.split(":")
-            if(keyPair[0] == tagToQuery) {
-                tagValue = keyPair.length > 1 ? keyPair[1] : ""
-                break
-            }
-        }
 
-        // not found original one? go to the next result
-        if(tagValue==null) {
-            winston.info(`[duplicateTag] Original tag not found for resource ${resource.resource_id}. Duplication will be ignored.`)
-            continue;
-        }
-
-        let tagFound=false
-        // look for new tag, if existent, then replace it.
-        for(const tag of tags.result.items) {
-            const keyPair = tag.name.split(":")
-            if(keyPair[0] == tagToDuplicate) {
-                tagFound=true
-                if(keyPair.length > 1) {
-                    if(keyPair[1] != tagValue) {
-                        winston.info(`[duplicateTag] We found a different previous value for tag ${keyPair[0]} for resource ${resource.resource_id}. We are going to replace it.`)
-                        await replaceTag([`${tag.name}`, `${keyPair[0]}:${tagValue}`], [resource])
-                        break
-                    }
+        try {
+            const tags = await tagService.listTags(
+                { attachedTo: resource.resource_id }
+            )
+            let tagValue = null
+            // look for original tag
+            for(const tag of tags.result.items) {
+                const keyPair = tag.name.split(":")
+                if(keyPair[0] == tagToQuery) {
+                    tagValue = keyPair.length > 1 ? keyPair[1] : ""
+                    break
                 }
-               
             }
+    
+            // not found original one? go to the next result
+            if(tagValue==null) {
+                winston.info(`[duplicateTag] Original tag not found for resource ${resource.resource_id}. Duplication will be ignored.`)
+                continue;
+            }
+    
+            let tagFound=false
+            // look for new tag, if existent, then replace it.
+            for(const tag of tags.result.items) {
+                const keyPair = tag.name.split(":")
+                if(keyPair[0] == tagToDuplicate) {
+                    tagFound=true
+                    if(keyPair.length > 1) {
+                        if(keyPair[1] != tagValue) {
+                            winston.info(`[duplicateTag] We found a different previous value for tag ${keyPair[0]} for resource ${resource.resource_id}. We are going to replace it.`)
+                            await replaceTag([`${tag.name}`, `${keyPair[0]}:${tagValue}`], [resource])
+                            break
+                        }
+                    }
+                   
+                }
+            }
+    
+    
+            if(!tagFound) {
+                winston.info(`[duplicateTag] Adding a new tag ${tagToDuplicate} to resource ${resource.resource_id} with value ${tagValue}`)
+                await tagService.attachTag({
+                    tagName: `${tagToDuplicate}:${tagValue}`,
+                    resources: [resource]
+                })
+            }
+            
+        } catch(e) {
+            console.error('[duplicateTag] Exception thrown while duplicating tag: ' + e)
+            console.log('[duplicateTag] Keep going as show must go on.')
         }
-
-
-        if(!tagFound) {
-            winston.info(`[duplicateTag] Adding a new tag ${tagToDuplicate} to resource ${resource.resource_id} with value ${tagValue}`)
-            await tagService.attachTag({
-                tagName: `${tagToDuplicate}:${tagValue}`,
-                resources: [resource]
-            })
-        }
-        
 
     }
 }
