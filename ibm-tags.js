@@ -135,7 +135,7 @@ async function loadResources() {
 
         let params = {
             limit: 1000,
-            query: '*',
+            query: `${process.env.SEARCH_QUERY_FILTER}` || '*',
             fields: ["name", "tags", "service_name", "type", "doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
         }
         while(hasNextPage) {
@@ -151,6 +151,7 @@ async function loadResources() {
                 hasNextPage = false
             }
         }
+
         let numberOfResourceGroups = 0
         const resourceGroupsToConsider = resources.result.items.filter(resource => {
             if (resource.type == "resource-group" || resource.type == "cf-organization" || resource.type == "cf-space") {
