@@ -247,17 +247,26 @@ async function replaceTag(tags, resources) {
     const tag1 = tags[0]
     const tag2 = tags[1]
 
+    const newResources = resources.filter((x) => {
+        return x.tags.indexOf(tag1) >= 0 
+    })
+
+    if(newResources.length == 0 ) {
+        winston.warn(`[replaceTag] There are not tags to replace.`)
+        return;
+    }
+
     await tagService.detachTag({
         tagNames: [tag1],
-        resources: resources
+        resources: newResources
     })
 
     await tagService.attachTag({
         tagNames: [tag2],
-        resources: resources
+        resources: newResources
     })
 
-    winston.info('[replaceTag] Tag successfully replaced.')
+    winston.info(`[replaceTag] Tag successfully replaced in ${newResources.length} resources.`)
 }
 
 /**
@@ -444,7 +453,7 @@ async function main() {
         loadResources(),
     ])
 
-    const resourcesToManage = resources.map(r => { return { resource_id: r.resource_id } })
+    const resourcesToManage = resources.map(r => { return { resource_id: r.resource_id, tags: r.tags } })
 
     if (operation == "attach-tag") {
         await addTagsToResources(tagsToManage, resourcesToManage)
