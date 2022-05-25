@@ -79,17 +79,50 @@ function shouldIncludeResource(resource, resourcesToLookFor) {
  * 
  */
 async function addTagsToResources(tags, resources) {
-    winston.debug(`Calling addTagValuesToResources with parameters: 
+    const newResources = resources.map((x) => {return {resource_id: x.resource_id}})
+    winston.debug(`[addTagsToResources] Calling addTagValuesToResources with parameters: 
     TAGS: ${tags}
-    RESOURCES: ${JSON.stringify(resources)}`)
+    RESOURCES: ${JSON.stringify(newResources)}`)
 
     await tagService.attachTag({
         tagNames: tags,
-        resources: resources
+        resources: newResources
     })
 
-    winston.info('Successfully added tags to resources.')
+    winston.info(`[addTagsToResources] Successfully added tags to ${newResources.length} resources.`)
 }
+
+async function addTagsToResourcesIfNotExists(tags, resources) {
+    const tagName     = tags[0].split(":")[0]
+    const resources2 = resources.filter((x) => {
+        for(const tag of x.tags) {
+            const tagName2 = tag.split(":")[0]
+            if(tagName == tagName2) {
+                return false;
+            }
+        }
+
+        return true;
+    })
+
+    if(resources2.length == 0) {
+        winston.warn(`[addTagsToResourcesIfNotExists] There are not resources to add tags.`)
+        return;
+    }
+    const newResources = resources2.map((x) => {return {resource_id: x.resource_id}})
+    winston.debug(`[addTagsToResourcesIfNotExists] Calling addTagValuesToResources with parameters: 
+    TAGS: ${tags}
+    RESOURCES: ${JSON.stringify(newResources)}`)
+
+    await tagService.attachTag({
+        tagNames: tags,
+        resources: newResources
+    })
+
+    winston.info(`[addTagsToResourcesIfNotExists] Successfully added tags to ${newResources.length} resources.`)
+}
+
+
 
 /**
  * Detach a set of tags from a set of resources, using the IBM Cloud Global Tagging API.
@@ -135,7 +168,7 @@ async function loadResources() {
 
         let params = {
             limit: 1000,
-            query: `${process.env.SEARCH_QUERY_FILTER}` || '*',
+            query: `${process.env.SEARCH_QUERY_FILTER || '*'}`,
             fields: ["name", "tags", "service_name", "type", "doc.resource_group_id", "region", "doc.space_guid", "organization_guid"]
         }
         while(hasNextPage) {
@@ -457,6 +490,10 @@ async function main() {
 
     if (operation == "attach-tag") {
         await addTagsToResources(tagsToManage, resourcesToManage)
+    }
+
+    if (operation == "attach-unique-tag") {
+        await addTagsToResourcesIfNotExists(tagsToManage, resourcesToManage)
     }
 
     if (operation == "detach-tag") {
