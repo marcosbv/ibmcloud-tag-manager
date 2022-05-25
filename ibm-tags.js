@@ -114,10 +114,14 @@ async function addTagsToResourcesIfNotExists(tags, resources) {
     TAGS: ${tags}
     RESOURCES: ${JSON.stringify(newResources)}`)
 
-    await tagService.attachTag({
-        tagNames: tags,
-        resources: newResources
-    })
+    for(const newResource of newResources) {
+        winston.info(`[addTagsToResourcesIfNotExists] Adding tag ${tags[0]} to resource ${newResource.resource_id}`)
+        await tagService.attachTag({
+            tagNames: tags,
+            resources: newResource
+        })
+    }
+   
 
     winston.info(`[addTagsToResourcesIfNotExists] Successfully added tags to ${newResources.length} resources.`)
 }
