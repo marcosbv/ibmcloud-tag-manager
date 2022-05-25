@@ -118,7 +118,7 @@ async function addTagsToResourcesIfNotExists(tags, resources) {
         winston.info(`[addTagsToResourcesIfNotExists] Adding tag ${tags[0]} to resource ${newResource.resource_id}`)
         await tagService.attachTag({
             tagNames: tags,
-            resources: newResource
+            resources: [newResource]
         })
     }
    
